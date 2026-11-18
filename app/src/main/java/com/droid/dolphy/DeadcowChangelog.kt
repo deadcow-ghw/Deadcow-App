@@ -40,7 +40,8 @@ object DeadcowChangelog {
                 "⚙️ Correction du Manifest Android & AAPT2 : Suppression de l'erreur XML de syntaxe (attributs de service dupliqués et markers) débloquant la compilation de l'APK en Release et Debug.",
                 "📱 Sécurisation des récepteurs Android 14+ : Ajustement de tous les Context.registerReceiver avec ContextCompat.RECEIVER_EXPORTED (prévention des plantages système au démarrage).",
                 "🔄 Automatisation CI/CD fiabilisée : Correction du script de synchronisation GitHub Actions pour garantir une résolution pérenne des conflits sans pollution du code source.",
-                "🛴 Module Trottinettes stabilisé : Maintien de la détection BLE Xiaomi, Ninebot/Segway et balises flottes en libre-service."
+                "🛴 Module Trottinettes optimisé & fiabilisé : Correction de la bascule de filtre (nettoyage des périphériques non-trottinette), élimination des race conditions de connexion/déconnexion BLE, double télémétrie ESC & BMS (0x1A et 0x31) et ajout d'un bouton de rafraîchissement d'état.",
+                "🔍 Classification BLE intelligente : Résolution du conflit de nommage où les trottinettes Xiaomi étaient identifiées comme téléphones, reconnaissance élargie des modèles Ninebot (F, D, E, GT) et flottes commerciales (Beam, Helbiz, Forest, Link, Neuron)."
             )
         ),
         ChangelogEntry(

@@ -255,6 +255,16 @@ object BluetoothDeviceResolver {
             n.contains("garmin") -> "Garmin International"
             n.contains("fitbit") -> "Fitbit, Inc."
             n.contains("ninebot") || n.contains("segway") -> "Ninebot / Segway"
+            n.contains("kukirin") || n.contains("kugoo") -> "KuKirin / Kugoo"
+            n.contains("dualtron") || n.contains("minimotors") -> "Minimotors Dualtron"
+            n.contains("kaabo") -> "Kaabo"
+            n.contains("vsett") -> "Vsett"
+            n.contains("inokim") -> "Inokim"
+            n.contains("lime") -> "Lime"
+            n.contains("tier") -> "Tier"
+            n.contains("dott") -> "Dott"
+            n.contains("bird") -> "Bird"
+            n.contains("okai") -> "Okai"
             n.contains("bledom") || n.contains("elk-") || n.contains("triones") -> "Smart Light"
             else -> null
         }
@@ -263,6 +273,14 @@ object BluetoothDeviceResolver {
     private fun guessCategoryFromName(name: String): String {
         val n = name.lowercase(Locale.ROOT)
         return when {
+            n.contains("scooter") || n.contains("trottinette") || n.contains("trotti") ||
+            n.contains("ninebot") || n.contains("segway") || n.contains("kickscooter") ||
+            n.contains("m365") || n.contains("kukirin") || n.contains("kugoo") ||
+            n.contains("dualtron") || n.contains("kaabo") || n.contains("vsett") ||
+            n.contains("lime") || n.contains("tier") || n.contains("dott") ||
+            n.contains("bolt") || n.contains("bird") || n.contains("okai") ||
+            n.contains("escooter") || n.contains("e-scooter") || n.contains("patinete") -> "Trottinette"
+
             n.contains("airpod") || n.contains("buds") || n.contains("head") || n.contains("ear") ||
             n.contains("speaker") || n.contains("sound") || n.contains("audio") || n.contains("casque") ||
             n.contains("écouteur") || n.contains("enceinte") || n.contains("freebuds") ||
@@ -280,9 +298,6 @@ object BluetoothDeviceResolver {
 
             n.contains("watch") || n.contains("band") || n.contains("fitbit") || n.contains("garmin") ||
             n.contains("bracelet") || n.contains("montre") -> "Montre/Bracelet"
-
-            n.contains("scooter") || n.contains("trottinette") || n.contains("ninebot") || n.contains("segway") ||
-            n.contains("m365") -> "Trottinette"
 
             n.contains("light") || n.contains("lamp") || n.contains("bulb") || n.contains("bledom") ||
             n.contains("triones") || n.contains("lumiere") || n.contains("led") -> "Lumière"

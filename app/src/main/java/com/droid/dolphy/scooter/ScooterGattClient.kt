@@ -11,6 +11,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -35,11 +36,20 @@ class ScooterGattClient(
     private var writeChar: BluetoothGattCharacteristic? = null
     private var notifyChar: BluetoothGattCharacteristic? = null
     private val ready = AtomicBoolean(false)
+    private val isClosed = AtomicBoolean(false)
     private var isDisconnecting = false
     private var readyTimeoutRunnable: Runnable? = null
 
+    private fun notifyListener(action: (Listener) -> Unit) {
+        main.post {
+            if (!isClosed.get()) {
+                action(listener)
+            }
+        }
+    }
+
     fun connect() {
-        close()
+        if (isClosed.get()) return
         isDisconnecting = false
         ready.set(false)
         try {
@@ -50,23 +60,38 @@ class ScooterGattClient(
                 device.connectGatt(context, false, callback)
             }
         } catch (t: Throwable) {
-            main.post { listener.onError("Erreur connexion: ${t.message}") }
+            notifyListener { it.onError("Erreur connexion: ${t.message}") }
         }
     }
 
     fun disconnect() {
+        if (isClosed.get()) return
         isDisconnecting = true
         ready.set(false)
         cancelReadyTimeout()
-        try {
-            gatt?.disconnect()
-        } catch (_: Exception) {
+        val g = gatt
+        if (g == null) {
+            close()
+            notifyListener { it.onDisconnected(null) }
+            return
         }
-        close()
-        main.post { listener.onDisconnected(null) }
+        try {
+            g.disconnect()
+            // Timeout de repli au cas où le callback onConnectionStateChange ne se déclenche pas
+            main.postDelayed({
+                if (isDisconnecting && !isClosed.get()) {
+                    close()
+                    notifyListener { it.onDisconnected(null) }
+                }
+            }, 1200)
+        } catch (_: Exception) {
+            close()
+            notifyListener { it.onDisconnected(null) }
+        }
     }
 
     fun close() {
+        if (isClosed.getAndSet(true)) return
         ready.set(false)
         cancelReadyTimeout()
         writeChar = null
@@ -88,12 +113,13 @@ class ScooterGattClient(
     fun send(payload: ByteArray, label: String, silent: Boolean = false) {
         val g = gatt
         val ch = writeChar
-        if (g == null || ch == null || !ready.get()) {
-            if (!silent) main.post { listener.onCommandResult(false, "$label (non connecté)") }
+        if (isClosed.get() || g == null || ch == null || !ready.get()) {
+            if (!silent) notifyListener { it.onCommandResult(false, "$label (non connecté)") }
             return
         }
 
         executor.execute {
+            if (isClosed.get()) return@execute
             try {
                 val currentGatt = gatt ?: return@execute
                 val currentChar = writeChar ?: return@execute
@@ -107,7 +133,7 @@ class ScooterGattClient(
                 var offset = 0
                 var allOk = true
 
-                while (offset < payload.size) {
+                while (offset < payload.size && !isClosed.get()) {
                     val end = minOf(offset + 20, payload.size)
                     val chunk = payload.copyOfRange(offset, end)
 
@@ -133,12 +159,12 @@ class ScooterGattClient(
                     }
                 }
 
-                if (!silent) {
-                    main.post { listener.onCommandResult(allOk, label) }
+                if (!silent && !isClosed.get()) {
+                    notifyListener { it.onCommandResult(allOk, label) }
                 }
             } catch (t: Throwable) {
-                if (!silent) {
-                    main.post { listener.onError(t.message ?: "Échec d'écriture UART") }
+                if (!silent && !isClosed.get()) {
+                    notifyListener { it.onError(t.message ?: "Échec d'écriture UART") }
                 }
             }
         }
@@ -146,34 +172,36 @@ class ScooterGattClient(
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+            if (isClosed.get()) return
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         // Stabilisation courte avant la découverte des services (évite les conflits MTU / 133)
                         main.postDelayed({
+                            if (isClosed.get() || isDisconnecting) return@postDelayed
                             try {
                                 g.discoverServices()
                             } catch (e: Exception) {
-                                main.post { listener.onError("Erreur découverte: ${e.message}") }
+                                notifyListener { it.onError("Erreur découverte: ${e.message}") }
                             }
-                        }, 150)
+                        }, 180)
                     } else {
-                        main.post { listener.onError("Échec connexion GATT (code=$status)") }
+                        notifyListener { it.onError("Échec connexion GATT (code=$status)") }
                         close()
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    ready.set(false)
-                    cancelReadyTimeout()
-                    main.post { listener.onDisconnected(if (isDisconnecting) null else "Déconnecté (status=$status)") }
+                    val wasDisconnecting = isDisconnecting
                     close()
+                    notifyListener { it.onDisconnected(if (wasDisconnecting) null else "Déconnecté (status=$status)") }
                 }
             }
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+            if (isClosed.get()) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                main.post { listener.onError("Services introuvables (status=$status)") }
+                notifyListener { it.onError("Services introuvables (status=$status)") }
                 disconnect()
                 return
             }
@@ -216,9 +244,13 @@ class ScooterGattClient(
                 }
             }
 
-            // 5. Recherche universelle dynamique parmi tous les services découverts
-            if (writeChar == null) {
+            // 5. Recherche universelle dynamique parmi tous les services découverts (en ignorant les métadonnées standard Bluetooth SIG)
+            if (writeChar == null || notifyChar == null) {
                 for (s in g.services) {
+                    val uuidStr = s.uuid.toString().lowercase(Locale.ROOT)
+                    if (uuidStr.startsWith("00001800") || uuidStr.startsWith("00001801") || uuidStr.startsWith("0000180a")) {
+                        continue
+                    }
                     for (c in s.characteristics) {
                         val props = c.properties
                         val canWrite = (props and (BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0
@@ -236,8 +268,9 @@ class ScooterGattClient(
             }
 
             if (writeChar == null) {
-                main.post { listener.onError("Canal UART d'écriture non trouvé sur cet équipement") }
-                disconnect()
+                notifyListener { it.onError("Canal UART d'écriture non trouvé sur cet équipement") }
+                isDisconnecting = true
+                close()
                 return
             }
 
@@ -308,18 +341,27 @@ class ScooterGattClient(
     }
 
     private fun markReadyAndConnected() {
+        if (isClosed.get()) return
         cancelReadyTimeout()
         if (ready.compareAndSet(false, true)) {
-            main.post { listener.onConnected() }
-            // Demande automatique de télémétrie (batterie / état)
+            notifyListener { it.onConnected() }
+            // Demande automatique de télémétrie ESC (batterie / état)
             main.postDelayed({
-                send(ScooterProtocol.COMMAND_QUERY_STATUS, "Statut", silent = true)
+                if (!isClosed.get() && ready.get()) {
+                    send(ScooterProtocol.COMMAND_QUERY_STATUS, "Statut ESC", silent = true)
+                }
             }, 300)
+            // Demande automatique de télémétrie BMS
+            main.postDelayed({
+                if (!isClosed.get() && ready.get()) {
+                    send(ScooterProtocol.COMMAND_QUERY_BMS, "Batterie BMS", silent = true)
+                }
+            }, 650)
         }
     }
 
     private fun onNotify(chunk: ByteArray) {
-        if (chunk.size < 5) return
+        if (chunk.size < 5 || isClosed.get()) return
         try {
             for (i in 0 until chunk.size - 4) {
                 val b0 = chunk[i].toInt() and 0xFF
@@ -327,12 +369,12 @@ class ScooterGattClient(
                 // Ninebot UART header 0x55 0xAA ou 0x5A 0xA5
                 if ((b0 == 0x55 && b1 == 0xAA) || (b0 == 0x5A && b1 == 0xA5)) {
                     val len = chunk[i + 2].toInt() and 0xFF
-                    if (i + 3 + len <= chunk.size && i + 5 < chunk.size) {
+                    if (i + 5 < chunk.size) {
                         val cmd = chunk[i + 5].toInt() and 0xFF
-                        if (cmd == 0x1A && i + 6 < chunk.size) {
+                        if ((cmd == 0x1A || cmd == 0x31) && i + 6 < chunk.size) {
                             val battery = chunk[i + 6].toInt() and 0xFF
                             if (battery in 0..100) {
-                                main.post { listener.onBattery(battery) }
+                                notifyListener { it.onBattery(battery) }
                             }
                         }
                     }

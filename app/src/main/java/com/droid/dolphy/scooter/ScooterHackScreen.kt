@@ -132,6 +132,20 @@ fun ScooterHackScreen(
         }
     }
 
+    fun ensureConnect(scooter: ScooterDevice) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val hasConnect = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasConnect) {
+                permissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT))
+                return
+            }
+        }
+        viewModel.toggleConnection(context, scooter)
+    }
+
     LaunchedEffect(Unit) {
         ensureScan()
     }
@@ -288,7 +302,7 @@ fun ScooterHackScreen(
                             index = index,
                             count = devices.size,
                             accent = accent,
-                            onToggleConnect = { viewModel.toggleConnection(context, scooter) },
+                            onToggleConnect = { ensureConnect(scooter) },
                             onSendPayload = { p, l -> viewModel.sendTuningPayload(p, l) },
                         )
                     }
@@ -488,6 +502,10 @@ private fun ScooterDeviceCard(
                         }
                         ActionChip(icon = Icons.Filled.Bolt, label = "Phares", accent = accent) {
                             onSendPayload(ScooterProtocol.COMMAND_LIGHTS_TOGGLE, "Phares LED")
+                        }
+                        ActionChip(icon = Icons.Filled.Refresh, label = "Statut", accent = accent) {
+                            onSendPayload(ScooterProtocol.COMMAND_QUERY_STATUS, "Statut ESC")
+                            onSendPayload(ScooterProtocol.COMMAND_QUERY_BMS, "Batterie BMS")
                         }
                         ActionChip(icon = Icons.Filled.ElectricScooter, label = "Sport 30k", accent = accent) {
                             onSendPayload(ScooterProtocol.COMMAND_SPORT_SPEED_30, "Sport 30km/h")

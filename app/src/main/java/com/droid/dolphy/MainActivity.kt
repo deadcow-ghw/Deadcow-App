@@ -1278,6 +1278,9 @@ fun MainScaffold(
             }
             composable("audio_scanner") { AudioScannerScreen(screenNavController) }
             composable("other/audio_scanner") { AudioScannerScreen(screenNavController) }
+            composable("scooter_hack") {
+                com.droid.dolphy.scooter.ScooterHackScreen(screenNavController)
+            }
             composable("other/scooter_hack") {
                 com.droid.dolphy.scooter.ScooterHackScreen(screenNavController)
             }

@@ -168,11 +168,14 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
             }
             return
         }
-        gattClient = ScooterGattClient(
+
+        var clientRef: ScooterGattClient? = null
+        val client = ScooterGattClient(
             context = context.applicationContext,
             device = remote,
             listener = object : ScooterGattClient.Listener {
                 override fun onConnected() {
+                    if (gattClient !== clientRef) return
                     _connectedAddress.value = scooter.address
                     updateDevice(scooter.address) {
                         it.copy(
@@ -188,8 +191,11 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
                 }
 
                 override fun onDisconnected(reason: String?) {
-                    if (_connectedAddress.value == scooter.address) {
-                        _connectedAddress.value = null
+                    if (gattClient === clientRef) {
+                        if (_connectedAddress.value == scooter.address) {
+                            _connectedAddress.value = null
+                        }
+                        gattClient = null
                     }
                     updateDevice(scooter.address) {
                         it.copy(
@@ -198,35 +204,39 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
                             statusMessage = reason ?: "Déconnecté",
                         )
                     }
-                    gattClient = null
                 }
 
                 override fun onBattery(percent: Int) {
+                    if (gattClient !== clientRef) return
                     updateDevice(scooter.address) { it.copy(batteryPercent = percent) }
                 }
 
                 override fun onCommandResult(ok: Boolean, label: String) {
+                    if (gattClient !== clientRef) return
                     updateDevice(scooter.address) {
                         it.copy(statusMessage = if (ok) "$label ✓" else "$label : échec")
                     }
                 }
 
                 override fun onError(message: String) {
+                    if (gattClient !== clientRef) return
                     updateDevice(scooter.address) {
                         it.copy(isConnecting = false, statusMessage = message)
                     }
                 }
             },
         )
-        gattClient?.connect()
+        clientRef = client
+        gattClient = client
+        client.connect()
     }
 
     fun disconnect(silent: Boolean = false) {
         val addr = _connectedAddress.value
-        gattClient?.disconnect()
-        gattClient?.close()
+        val client = gattClient
         gattClient = null
         _connectedAddress.value = null
+        client?.disconnect()
         if (addr != null && !silent) {
             updateDevice(addr) {
                 it.copy(isConnected = false, isConnecting = false, statusMessage = "Déconnecté")
@@ -248,7 +258,9 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
         val list = if (_showAllDevices.value) {
             deviceMap.values.toList()
         } else {
-            deviceMap.values.toList()
+            deviceMap.values.filter {
+                it.isConnected || it.isRentalFleet || it.brandOrCategory != "Périphérique BLE"
+            }
         }
         _devices.value = list
             .sortedWith(compareByDescending<ScooterDevice> { it.isConnected }
@@ -280,6 +292,11 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
             "circ",
             "wind",
             "pony",
+            "beam",
+            "helbiz",
+            "forest",
+            "link",
+            "neuron",
             "omni",
             "okai",
             "comodule",
@@ -320,13 +337,21 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
             "kukirin",
             "kugoo",
             "dualtron",
+            "minimotors",
             "inokim",
             "vsett",
             "kaabo",
+            "nami",
+            "apollo",
+            "e-twow",
             "navee",
             "joyor",
             "niu",
             "ducati",
+            "soflow",
+            "evercross",
+            "urbanglide",
+            "wiizzee",
             "pure electric",
             "speedtrott",
             "scooter",
@@ -396,7 +421,21 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
                 lowerName.contains("g30") ||
                 lowerName.contains("es1") ||
                 lowerName.contains("es2") ||
-                lowerName.contains("es4")
+                lowerName.contains("es4") ||
+                lowerName.contains("e22") ||
+                lowerName.contains("e25") ||
+                lowerName.contains("e45") ||
+                lowerName.contains("f20") ||
+                lowerName.contains("f25") ||
+                lowerName.contains("f30") ||
+                lowerName.contains("f40") ||
+                lowerName.contains("d18") ||
+                lowerName.contains("d28") ||
+                lowerName.contains("d38") ||
+                lowerName.contains("p65") ||
+                lowerName.contains("p100") ||
+                lowerName.contains("gt1") ||
+                lowerName.contains("gt2")
 
             val isNinebotMfg = mfg != null && (
                 mfg.indexOfKey(ScooterProtocol.NINEBOT_MANUFACTURER_ID) >= 0 ||
@@ -436,10 +475,12 @@ class ScooterHackViewModel(app: Application) : AndroidViewModel(app) {
             for (hint in PERSONAL_SCOOTER_HINTS) {
                 if (lowerName.contains(hint)) {
                     val brandName = hint.replaceFirstChar { it.uppercase() }
+                    val isGeneric = hint in listOf("scooter", "trottinette", "trotti", "escooter", "e-scooter", "patinete")
+                    val finalBrand = if (isGeneric) "Trottinette électrique" else "$brandName Scooter"
                     return DeviceClassification(
-                        brand = "$brandName Scooter",
+                        brand = finalBrand,
                         isRentalFleet = false,
-                        defaultName = rawName.ifBlank { "$brandName Scooter" },
+                        defaultName = rawName.ifBlank { finalBrand },
                     )
                 }
             }
