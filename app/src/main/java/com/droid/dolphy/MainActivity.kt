@@ -818,7 +818,7 @@ fun MainScreen(
                     runCatching { uriHandler.openUri("https://discord.gg/cdcleak") }
                 },
                 onSupport = {
-                    runCatching { uriHandler.openUri("https://github.com/zitk9/Deadcow-App") }
+                    runCatching { uriHandler.openUri("https://github.com/deadcow-ghw/Deadcow-App") }
                 }
             )
         }

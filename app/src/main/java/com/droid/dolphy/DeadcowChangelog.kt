@@ -281,7 +281,7 @@ fun ChangelogDialog(
             ) {
                 OutlinedButton(
                     onClick = {
-                        runCatching { uriHandler.openUri("https://github.com/zitk9/Deadcow-App/releases") }
+                        runCatching { uriHandler.openUri("https://github.com/deadcow-ghw/Deadcow-App/releases") }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

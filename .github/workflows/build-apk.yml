@@ -23,6 +23,7 @@ permissions:
   contents: write
   pages: write
   actions: write
+  id-token: write
 
 jobs:
   build:
@@ -139,7 +140,7 @@ jobs:
             "versionCode": ${VER_CODE},
             "versionName": "${VER_NAME}",
             "tagName": "${TAG_NAME}",
-            "apkUrl": "https://github.com/zitk9/Deadcow-App/releases/download/${TAG_NAME}/Deadcow-release.apk"
+            "apkUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/Deadcow-release.apk"
           }
           EOF
           cat version.json

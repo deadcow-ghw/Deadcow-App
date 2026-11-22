@@ -53,9 +53,9 @@ sealed class AutoUpdateState {
 
 object AutoUpdater {
     private const val TAG = "DeadcowAutoUpdater"
-    private const val GITHUB_RELEASES_API = "https://api.github.com/repos/zitk9/Deadcow-App/releases"
-    private const val VERSION_JSON_GHPAGES = "https://zitk9.github.io/Deadcow-App/version.json"
-    private const val BUILD_GRADLE_RAW = "https://raw.githubusercontent.com/zitk9/Deadcow-App/main/app/build.gradle.kts"
+    private const val GITHUB_RELEASES_API = "https://api.github.com/repos/deadcow-ghw/Deadcow-App/releases"
+    private const val VERSION_JSON_GHPAGES = "https://deadcow-ghw.github.io/Deadcow-App/version.json"
+    private const val BUILD_GRADLE_RAW = "https://raw.githubusercontent.com/deadcow-ghw/Deadcow-App/main/app/build.gradle.kts"
     private const val PREFS_NAME = "DeadcowUpdaterPrefs"
     private const val KEY_AUTO_UPDATE_ENABLED = "auto_update_enabled"
     private const val KEY_DISMISSED_VERSION_CODE = "dismissed_version_code"
@@ -219,7 +219,7 @@ object AutoUpdater {
 
     fun launchBrowserDownload(context: Context, release: DeadcowReleaseInfo? = null) {
         runCatching {
-            val url = release?.apkUrl?.takeIf { it.isNotBlank() } ?: "https://github.com/zitk9/Deadcow-App/releases/latest"
+            val url = release?.apkUrl?.takeIf { it.isNotBlank() } ?: "https://github.com/deadcow-ghw/Deadcow-App/releases/latest"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

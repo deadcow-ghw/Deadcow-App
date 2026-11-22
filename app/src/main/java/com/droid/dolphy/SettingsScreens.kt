@@ -742,7 +742,7 @@ fun SettingsScreen(spamViewModel: SpamViewModel, dolphyViewModel: DolphyViewMode
                         contentPadding = 0.dp
                     ) {
                         Column {
-                            SettingsItem(onClick = { uriHandler.openUri("https://zitk9.github.io/Deadcow-App/") }) {
+                            SettingsItem(onClick = { uriHandler.openUri("https://deadcow-ghw.github.io/Deadcow-App/") }) {
                                 Icon(Icons.Default.Language, null, tint = accentColor, modifier = Modifier.size(24.dp))
                                 Spacer(Modifier.width(12.dp))
                                 Text("Documentation Deadcow", style = MaterialTheme.typography.bodyLarge)
@@ -750,7 +750,7 @@ fun SettingsScreen(spamViewModel: SpamViewModel, dolphyViewModel: DolphyViewMode
                                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             MaterialDivider()
-                            SettingsItem(onClick = { uriHandler.openUri("https://github.com/zitk9/Deadcow-App") }) {
+                            SettingsItem(onClick = { uriHandler.openUri("https://github.com/deadcow-ghw/Deadcow-App") }) {
                                 Icon(Icons.Default.Code, null, tint = accentColor, modifier = Modifier.size(24.dp))
                                 Spacer(Modifier.width(12.dp))
                                 Text("GitHub Repository", style = MaterialTheme.typography.bodyLarge)
